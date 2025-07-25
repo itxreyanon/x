@@ -5,7 +5,7 @@ async function main() {
   const client = new Client({
     // Configure options
     sessionFilePath: './my_session.json',
-    cookiesFilePath: './my_cookies.json',
+    cookiesFilePath: './cookies.json', // Corrected path
     proxy: { // Example proxy config
       type: 5,
       host: 'proxy.example.com',
@@ -69,8 +69,7 @@ async function main() {
 
   // --- Graceful Shutdown ---
   const shutdownHandler = async () => {
-    console.log('
-👋 Shutting down gracefully...');
+    console.log('👋 Shutting down gracefully...'); // Corrected line
     await client.logout();
     console.log('🛑 Shutdown complete.');
     process.exit(0);
