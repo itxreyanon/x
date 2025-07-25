@@ -1,12 +1,12 @@
-// client/Client.js
+// client/Client.js (Upgraded/Combined)
 const { withRealtime, withFbns, withFbnsAndRealtime } = require('instagram_mqtt');
-const { GraphQLSubscriptions, SkywalkerSubscriptions } = require('instagram_mqtt');
+const { GraphQLSubscriptions, SkywalkerSubscriptions } = require('instagram_mqtt'); // Ensure this import is present
 const { IgApiClient } = require('instagram-private-api');
 const { EventEmitter } = require('events');
 const Collection = require('@discordjs/collection');
-const tough = require('tough-cookie');
-const fs = require('fs').promises; // Use promises for async/await
-const Util = require('./Util'); // We'll create this
+const fs = require('fs').promises; // Use fs.promises for async/await
+const tough = require('tough-cookie'); // For cookie handling
+const Util = require('./Util');
 const ClientUser = require('./ClientUser');
 const Message = require('./Message');
 const Chat = require('./Chat');
@@ -30,25 +30,25 @@ class Client extends EventEmitter {
      */
     constructor(options = {}) {
         super();
-        
+
         /**
          * @type {?ClientUser}
          * The bot's user object.
          */
         this.user = null;
-        
+
         /**
          * @type {?IgApiClient}
          * @private
          */
         this.ig = null;
-        
+
         /**
          * @type {boolean}
          * Whether the bot is connected and ready.
          */
         this.ready = false;
-        
+
         /**
          * @type {ClientOptions}
          * The options for the client.
@@ -61,7 +61,7 @@ class Client extends EventEmitter {
             maxProcessedMessageIds: 1000,
             ...options
         };
-        
+
         /**
          * @typedef {Object} Cache
          * @property {Collection<string, Message>} messages The bot's messages cache.
@@ -79,7 +79,7 @@ class Client extends EventEmitter {
             chats: new Collection(),
             pendingChats: new Collection()
         };
-        
+
         /**
          * @type {Set<string>}
          * @private
@@ -128,19 +128,26 @@ class Client extends EventEmitter {
             const cookies = JSON.parse(raw);
             let cookiesLoaded = 0;
             for (const cookie of cookies) {
+                // Ensure domain doesn't start with a dot for tough-cookie
                 const toughCookie = new tough.Cookie({
                     key: cookie.name,
                     value: cookie.value,
-                    domain: cookie.domain.replace(/^\./, ''),
+                    domain: cookie.domain ? cookie.domain.replace(/^\./, '') : undefined, // Handle potential missing domain
                     path: cookie.path || '/',
                     secure: cookie.secure !== false,
                     httpOnly: cookie.httpOnly !== false,
+                    // Add expires if available in your cookie format
+                    // expires: cookie.expires ? new Date(cookie.expires) : undefined
                 });
-                await this.ig.state.cookieJar.setCookie(
-                    toughCookie.toString(),
-                    `https://${toughCookie.domain}${toughCookie.path}`
-                );
-                cookiesLoaded++;
+                if (toughCookie.domain) { // Only set cookie if domain is present
+                     await this.ig.state.cookieJar.setCookie(
+                         toughCookie.toString(),
+                         `https://${toughCookie.domain}${toughCookie.path}`
+                     );
+                     cookiesLoaded++;
+                } else {
+                     this.log('WARN', `Skipping cookie due to missing domain: ${cookie.name}`);
+                }
             }
             this.log('INFO', `🍪 Successfully loaded ${cookiesLoaded}/${cookies.length} cookies from file`);
         } catch (error) {
@@ -182,9 +189,10 @@ class Client extends EventEmitter {
                 const currentUserResponse = await this.ig.account.currentUser(); // Validate cookies
                 this.log('INFO', `✅ Logged in using ${this.options.cookiesFilePath} as @${currentUserResponse.username}`);
                 loginSuccess = true;
-                
+
                 // Step 3: Save session after successful cookie login
                 const session = await this.ig.state.serialize();
+                // Remove constants before saving, similar to InstagramBot
                 delete session.constants;
                 await fs.writeFile(this.options.sessionFilePath, JSON.stringify(session, null, 2));
                 this.log('INFO', `💾 ${this.options.sessionFilePath} saved from cookie-based login`);
@@ -203,7 +211,7 @@ class Client extends EventEmitter {
      */
     registerRealtimeHandlers() {
         this.log('INFO', '📡 Registering real-time event handlers...');
-        
+
         // --- Core Message Handling (Adapted from InstagramBot) ---
         const handleMessageWrapper = async (data) => {
             try {
@@ -234,7 +242,7 @@ class Client extends EventEmitter {
                  return;
              }
              this.emit('rawRealtime', topic, payload);
-             
+
              // Forward to original parsing logic for topic 146 (inbox updates)
              if (topic.id === '146') {
                  // This logic is complex and was in the original Client.js
@@ -292,7 +300,7 @@ class Client extends EventEmitter {
         this.ig.realtime.on('debug', (data) => {
             this.log('TRACE', '🐛 Realtime debug info:', data);
         });
-        
+
         // --- FBNS Handling (from original insta.js Client) ---
         this.ig.fbns.push$.subscribe((data) => {
              if (!this.ready) {
@@ -325,6 +333,8 @@ class Client extends EventEmitter {
         // For brevity, we'll assume it exists or is implemented fully later.
         this.log('DEBUG', 'Parsing inbox updates (placeholder logic)');
         // ... (Implementation from original Client.handleRealtimeReceive for topic 146)
+        // You can copy/paste the logic from your original handleRealtimeReceive here for topic '146'
+        // Or refactor it into this method.
     }
 
     /**
@@ -388,7 +398,7 @@ class Client extends EventEmitter {
                   this.log('WARN', '⚠️ Received message with missing essential fields');
                   return;
               }
-              
+
               const threadId = eventData.thread?.thread_id || messagePayload.thread_id;
               if (!threadId) {
                   this.log('WARN', '⚠️ Could not determine thread ID for message');
@@ -402,7 +412,7 @@ class Client extends EventEmitter {
                    try {
                         // This might involve calling ig.feed.directThread or similar
                         // For simplicity, let's assume fetchChat handles it or creates a minimal one
-                        chat = await this.fetchChat(threadId); 
+                        chat = await this.fetchChat(threadId);
                         // If fetchChat fails, create a minimal one for now
                         if (!chat) {
                              chat = new Chat(this, threadId, { thread_id: threadId }); // Minimal data
@@ -415,7 +425,7 @@ class Client extends EventEmitter {
                         this.cache.chats.set(threadId, chat);
                    }
               }
-              
+
               // Create or update the Message object in the cache
               let message;
               if (chat.messages.has(messagePayload.item_id)) {
@@ -427,12 +437,12 @@ class Client extends EventEmitter {
                    // Add to global message cache if needed
                    this.cache.messages.set(message.id, message);
               }
-              
+
               // Emit the insta.js style event
               if (Util.isMessageValid(message)) {
                   this.emit('messageCreate', message);
               }
-              
+
          } catch (error) {
               this.log('ERROR', '❌ Error processing message into insta.js object:', error.message);
          }
@@ -485,7 +495,15 @@ class Client extends EventEmitter {
         // Register handlers
         this.registerRealtimeHandlers();
 
-        // Connect services
+        // Connect services with enhanced options
+        const socksOptions = this.options.proxy ? {
+             type: this.options.proxy.type || 5,
+             host: this.options.proxy.host,
+             port: this.options.proxy.port,
+             userId: this.options.proxy.username,
+             password: this.options.proxy.password,
+        } : undefined;
+
         const connectOptions = {
             autoReconnect: true,
             irisData: await this.ig.feed.directInbox().request(),
@@ -501,24 +519,12 @@ class Client extends EventEmitter {
                  SkywalkerSubscriptions.directSub(this.ig.state.cookieUserId),
                  SkywalkerSubscriptions.liveSub(this.ig.state.cookieUserId),
             ],
-            socksOptions: this.options.proxy ? {
-                 type: this.options.proxy.type || 5,
-                 host: this.options.proxy.host,
-                 port: this.options.proxy.port,
-                 userId: this.options.proxy.username,
-                 password: this.options.proxy.password,
-            } : undefined,
+            socksOptions: socksOptions,
         };
 
         const fbnsConnectOptions = {
             autoReconnect: true,
-            socksOptions: this.options.proxy ? {
-                 type: this.options.proxy.type || 5,
-                 host: this.options.proxy.host,
-                 port: this.options.proxy.port,
-                 userId: this.options.proxy.username,
-                 password: this.options.proxy.password,
-            } : undefined,
+            socksOptions: socksOptions,
         };
 
         await Promise.all([
@@ -601,10 +607,10 @@ class Client extends EventEmitter {
     // --- insta.js Style Methods (potentially enhanced) ---
     // These methods are largely from the original insta.js Client.js
     // ... (_patchOrCreateUser, createChat, fetchChat, fetchUser) ...
-    // (Implementation details omitted for brevity, assume they are present)
+    // (Implementation details are in your original file)
 
     // --- New Methods from InstagramBot Features ---
-    
+
     /**
      * Subscribe to live comments on a specific broadcast.
      * @param {string} broadcastId The ID of the live broadcast.
@@ -680,7 +686,7 @@ class Client extends EventEmitter {
         try {
             await this.ig.directThread.approve(threadId);
             this.log('INFO', `✅ Successfully approved message request: ${threadId}`);
-            
+
             // Update cache: Move from pending to main chats if it was pending
             const chat = this.cache.pendingChats.get(threadId);
             if (chat) {
@@ -689,7 +695,7 @@ class Client extends EventEmitter {
                 this.cache.pendingChats.delete(threadId);
                 this.emit('messageRequestApproved', chat); // New event
             }
-            
+
             return true;
         } catch (error) {
             this.log('ERROR', `Failed to approve message request ${threadId}:`, error.message);
@@ -710,14 +716,14 @@ class Client extends EventEmitter {
         try {
             await this.ig.directThread.decline(threadId);
             this.log('INFO', `❌ Successfully declined message request: ${threadId}`);
-            
+
             // Update cache: Remove from pending
             const chat = this.cache.pendingChats.get(threadId);
             if (chat) {
                 this.cache.pendingChats.delete(threadId);
                 this.emit('messageRequestDeclined', chat); // New event
             }
-            
+
             return true;
         } catch (error) {
             this.log('ERROR', `Failed to decline message request ${threadId}:`, error.message);
@@ -751,7 +757,7 @@ class Client extends EventEmitter {
 
     // --- Utility & Serialization (from insta.js) ---
     // ... (exportState, importState can be added if needed, though login handles persistence) ...
-    
+
     toJSON() {
         return {
             ready: this.ready,
