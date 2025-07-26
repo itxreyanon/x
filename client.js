@@ -2,7 +2,7 @@
 const { IgApiClient } = require('instagram-private-api');
 const { withFbnsAndRealtime } = require('instagram_mqtt');
 const { Collection } = require('./Collection'); // Assuming you use your custom Collection
-const Util = require('./Util'); // Assuming this exists
+const Util = require('./Utils'); // Assuming this exists
 const User = require('./User');
 const Chat = require('./Chat');
 const Message = require('./Message');
