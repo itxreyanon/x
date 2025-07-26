@@ -1,5 +1,5 @@
 const getUrls = require('get-urls')
-const Collection = require('/collection')
+const Collection = require('/Collection')
 const Util = require('./Utils')
 const Message = require('./Message')
 const Attachment = require('./Attachment')
