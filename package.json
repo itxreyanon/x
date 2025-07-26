@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Hyper Insta - Advanced Instagram Bot with Telegram integration and modular system",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js"
