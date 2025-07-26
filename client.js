@@ -1,7 +1,7 @@
 // Client.js (Modified Lib 1 with Lib 2 login logic)
 const { IgApiClient } = require('instagram-private-api');
 const { withFbnsAndRealtime } = require('instagram_mqtt');
-const { Collection } = require('./Collection'); // Assuming you use your custom Collection
+const Collection = require('@discordjs/collection') 
 const Util = require('./Utils'); // Assuming this exists
 const User = require('./User');
 const Chat = require('./Chat');
